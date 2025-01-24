@@ -1,6 +1,7 @@
 import os 
 import tkinter as tk 
 from tkinter import filedialog
+from tkinter import *
 from PIL import Image, ImageTk #PIL (Python Imaging Library) is used for image processing
 import cv2 # OpenCV library for image processing
 
@@ -41,6 +42,8 @@ class LoadingImage:
     def __init__(self, main_window):
         self.root = main_window #setting the main GUI window
         self.root.title("Image Viewer Application") # sets the title of the GUI
+        self.root.geometry("250x100")
+        
         
         self.processor = ProcessImage() #creates an instances of the first class
         
@@ -50,7 +53,6 @@ class LoadingImage:
         # Create main frame for GUI elements
         
         self.main_frame = tk.Frame(self.root)
-        self.main_frame.pack(padx=150, pady=50) #padding arround the image 
         
         # Create buttons
         self.create_buttons()
@@ -111,3 +113,5 @@ def main():
     app = LoadingImage(root)  
     root.mainloop()
 
+if __name__ == "__main__":
+    main()
