@@ -43,6 +43,7 @@ class LoadingImage:
         self.root.title("Image Viewer Application") # sets the title of the GUI
         
         self.processor = ProcessImage() #creates an instances of the first class
+        self.rect_id = None  # initialize the rectangle ID for canvas
         
         # Create top frame for buttons
         self.button_frame = tk.Frame(self.root)
@@ -61,6 +62,15 @@ class LoadingImage:
         
         # Store the PhotoImage reference
         self.photo_image = None
+
+        # Canvas to draw rectangles
+        self.canvas = tk.Canvas(self.root, cursor="cross")
+        self.canvas.pack(fill=tk.BOTH, expand=False)
+
+        # Bind mouse events
+        self.canvas.bind("<ButtonPress-1>", self.on_mouse_press)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_release)
         
     def create_buttons(self):  
         """Create the button for loading the selected image"""
@@ -98,12 +108,31 @@ class LoadingImage:
             max_size = (800, 600)
             image.thumbnail(max_size, Image.Resampling.LANCZOS) # used for resmapling the image when its resized
             
-            # Convert to PhotoImage
-            self.photo_image = ImageTk.PhotoImage(image)
+            # Display image in canvas
+            self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
             
             # Update label with new image
             self.image_label.configure(image=self.photo_image)
             self.image_label.image = self.photo_image
+
+    def on_mouse_press(self, event):
+        """Store the initial position of mouse when clicked"""
+        self.start_x, self.start_y = event.x, event.y
+
+    def on_mouse_drag(self, event):
+        """Draw a rectangle as the mouse is dragged"""
+        if self.rect_id:
+            self.canvas.delete(self.rect_id)
+        self.end_x, self.end_y = event.x, event.y
+        self.rect_id = self.canvas.create_rectangle(
+            self.start_x, self.start_y, self.end_x, self.end_y, outline="blue", width=2
+        )
+
+    def on_mouse_release(self, event):
+        """Handle the release of the mouse button (optional for now)"""
+        # You can add any functionality here for the release event if needed
+        pass
+    
 def main():
     root = tk.Tk()
     app = LoadingImage(root)  
