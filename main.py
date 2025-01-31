@@ -4,7 +4,6 @@ from tkinter import filedialog
 from PIL import Image, ImageTk #PIL (Python Imaging Library) is used for image processing
 import cv2 # OpenCV library for image processing
 
-
 class ProcessImage:
     def __init__(self):
         self.current_image = None #currently set as none but will store the loaded image
@@ -36,14 +35,13 @@ class ProcessImage:
         """Return the currently loaded image"""
         return self.current_image
     
-    
 class LoadingImage:
     def __init__(self, main_window):
         self.root = main_window #setting the main GUI window
         self.root.title("Image Viewer Application") # sets the title of the GUI
         
         self.processor = ProcessImage() #creates an instances of the first class
-        self.rect_id = None  # initialize the rectangle ID for canvas
+        self.rect_id = None  # Initialize the rectangle ID for canvas
         
         # Create top frame for buttons
         self.button_frame = tk.Frame(self.root)
@@ -99,21 +97,34 @@ class LoadingImage:
             if self.processor.load_image(file_path):
                 self.display_image()  # Display the loaded image
     
-    def display_image(self): 
-        """Display the currently loaded image"""
+    def display_image(self):
+        """Display the currently loaded image with a max size constraint"""
         if self.processor.current_image is not None:
             image = Image.fromarray(self.processor.current_image)  # Convert OpenCV image to PIL Image
             
-            # Resize image if it's too large (optional)
-            max_size = (800, 600)
-            image.thumbnail(max_size, Image.Resampling.LANCZOS) # used for resmapling the image when its resized
-            
+            # Define max width and height
+            max_width, max_height = 800, 600  # Change this based on your requirement
+
+            # Get original dimensions
+            img_width, img_height = image.size
+
+            # Scale image only if it's larger than max dimensions
+            if img_width > max_width or img_height > max_height:
+                image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)  # Resize while maintaining aspect ratio
+
+            # Convert to PhotoImage
+            self.photo_image = ImageTk.PhotoImage(image)
+
+            # Update canvas size to match the image dimensions
+            self.canvas.config(width=image.width, height=image.height)
+
             # Display image in canvas
             self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
-            
-            # Update label with new image
-            self.image_label.configure(image=self.photo_image)
-            self.image_label.image = self.photo_image
+
+            # Adjust scroll region to fit the image
+            self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+
+
 
     def on_mouse_press(self, event):
         """Store the initial position of mouse when clicked"""
@@ -132,7 +143,6 @@ class LoadingImage:
         """Handle the release of the mouse button (optional for now)"""
         # You can add any functionality here for the release event if needed
         pass
-    
 def main():
     root = tk.Tk()
     app = LoadingImage(root)  
