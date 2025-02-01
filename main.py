@@ -127,6 +127,7 @@ class LoadingImage:
 
 
     """ 
+    *Applying Dark Effect outside the selected area*
     This function darkens everything outside the selected area while keeping the selected part normal. 
     It firstly check if an image is loaded or not and then it makes a copy of it to add a black overlay.
     The black overlay is slightly transparent and we choose it to make it 60%.
@@ -163,6 +164,7 @@ class LoadingImage:
         self.redraw_rectangle()
 
     """
+    *Selection Box Drawing in Rectangle*
     This function is helpful to darw a blue rectange around the selected area in all four rectangles sides
     which will be helpful to adjust the selection area from each side. Firslty, it removes an old shapes becuase it will creat a pattern of redrwing otherwise and checks if the selection area exists and olny draw the rectangle.
     It also calculate the center points of each side of the rectange and places four small handles to make resizing the cropping image easier.
@@ -203,6 +205,7 @@ class LoadingImage:
 
 
     """ 
+    *On Mouse Selection Handling*
     Basically, this function is responsible to select an area on the canvas using the mouse cursor.
     When you click the mouse it will take and update the x and y coordinates in their respective start_x and start_y coordinates and moving on with dragging it will add end_x and end_y. 
     At the end when you release the mouse, it finalizes the selection area and make dark everything else outside the selected area.
