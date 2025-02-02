@@ -1,4 +1,4 @@
-import os 
+import os # used to save the cropped image
 import tkinter as tk 
 from tkinter import filedialog
 from PIL import Image, ImageTk #PIL (Python Imaging Library) is used for image processing
@@ -8,7 +8,7 @@ import numpy as np
 class ProcessImage:
     def __init__(self):
         self.current_image = None
-        self.current_image_path = None
+        # self.current_image_path = None
 
     def load_image(self, image_path):
         """Load an image using OpenCV."""
@@ -41,6 +41,14 @@ class LoadingImage:
         self.start_x = self.start_y = self.end_x = self.end_y = None
         self.drawn_shapes = []  # Store shape IDs to prevent multiple rectangles
 
+        """
+        These variables track and control the selection and resizing of a rectangle and they 
+        store handle positions, detect interactions and also keep the original size for accurate resizing.
+        """
+        self.active_handle = None
+        self.handle_positions = {}
+        self.original_coords = None
+
          # Create top frame for buttons
         self.button_frame = tk.Frame(self.root)
         self.button_frame.pack(side='top', fill='x')  # Pack at top and fill horizontally
@@ -72,19 +80,30 @@ class LoadingImage:
         # Store the PhotoImage reference
         self.photo_image = None
         self.original_image = None  # Store original image
+        # to store the croped image
+        self.cropped_image = None
 
     def create_buttons(self):  
         """Create the button for loading the selected image"""
         
-        button_frame = tk.Frame(self.root)  # Create frame in root instead of main_frame
-        button_frame.pack(side="bottom", pady=10)  # Pack at top with some padding
-        
+        # button_frame = tk.Frame(self.root)  # Create frame in root instead of main_frame
+        # button_frame.pack(side="bottom", pady=10)  # Pack at top with some padding
         load_button = tk.Button(
             self.button_frame,
             text="Load Image",
             command=self.load_image
         )
         load_button.pack(pady=10) #adding padding above and below the button
+
+        # this is the other button for downloading the image after being cropped and
+        # this button is disabled at first and only active when user draws shape in the image for cropping
+        self.download_button = tk.Button(
+            self.button_frame,
+            text="Download Cropped Image",
+            command=self.download_cropped_image,
+            state=tk.DISABLED
+        )
+        self.download_button.pack(pady=10)
 
     def load_image(self):
         """Open file dialog and load the selected image"""
@@ -155,6 +174,8 @@ class LoadingImage:
         y1, y2 = sorted([self.start_y, self.end_y])
         blended[y1:y2, x1:x2] = image[y1:y2, x1:x2]
 
+        self.cropped_image = image[y1:y2, x1:x2]  # Save cropped image for download
+
         # Convert and display the masked image
         masked_image = Image.fromarray(blended)
         self.photo_image = ImageTk.PhotoImage(masked_image)
@@ -162,6 +183,7 @@ class LoadingImage:
 
         # Redraw the selection rectangle with handles
         self.redraw_rectangle()
+        self.download_button.config(state=tk.NORMAL)  # Enable download button
 
     """
     *Selection Box Drawing in Rectangle*
@@ -190,6 +212,16 @@ class LoadingImage:
             mid_x = (self.start_x + self.end_x) // 2
             mid_y = (self.start_y + self.end_y) // 2
 
+            """
+            This code places small squares in the middle of each side of the rectangle so you can easily resize it.
+            """
+            self.handle_positions = {
+                "top": (mid_x, self.start_y),
+                "bottom": (mid_x, self.end_y),
+                "left": (self.start_x, mid_y),
+                "right": (self.end_x, mid_y)
+            }
+
             # Draw handles (small squares)
             top_handle = self.canvas.create_rectangle(mid_x - handle_size, self.start_y - handle_size,
                                                       mid_x + handle_size, self.start_y + handle_size, fill="blue")  # Top-center
@@ -203,26 +235,75 @@ class LoadingImage:
             # Store handle IDs for deletion on next redraw
             self.drawn_shapes.extend([top_handle, bottom_handle, left_handle, right_handle])
 
+    # This function checks if you clicked on a resize handle or not and if you click then it will atjust or
+    # it will create a new handler and return None.
+    def detect_handle(self, x, y):
+        handle_size = 6
+        for handle, (hx, hy) in self.handle_positions.items():
+            if hx - handle_size <= x <= hx + handle_size and hy - handle_size <= y <= hy + handle_size:
+                return handle
+        return None
+    
+    """
+    This function resizes the rectangle when you drag a handle with top, bottom, left, or right handler
+    and it also help to updates the rectangle's edges based on the mouse position while dragging the mouse in any 
+    position of the image.
+    """
+    def adjust_rectangle(self, x, y):
+        start_x, start_y, end_x, end_y = self.original_coords
+
+        if self.active_handle == "top":
+            self.start_y = y
+        elif self.active_handle == "bottom":
+            self.end_y = y
+        elif self.active_handle == "left":
+            self.start_x = x
+        elif self.active_handle == "right":
+            self.end_x = x
+
 
     """ 
     *On Mouse Selection Handling*
     Basically, this function is responsible to select an area on the canvas using the mouse cursor.
-    When you click the mouse it will take and update the x and y coordinates in their respective start_x and start_y coordinates and moving on with dragging it will add end_x and end_y. 
+    When you click the mouse it will take and update the x and y coordinates in their respective start_x and start_y coordinates and moving on with dragging it will add end_x and end_y.
+    If a resize handle is detected and your resize the cropping image , it enables resizing instead of creating a new selection. 
     At the end when you release the mouse, it finalizes the selection area and make dark everything else outside the selected area.
     """
     def on_mouse_press(self, event):
         """Store the initial position of the mouse when clicked."""
-        self.start_x, self.start_y = event.x, event.y
+        self.active_handle = self.detect_handle(event.x, event.y)
+        if self.active_handle is None:
+            self.start_x, self.start_y = event.x, event.y
+        else:
+            self.original_coords = (self.start_x, self.start_y, self.end_x, self.end_y)
 
     def on_mouse_drag(self, event):
         """Draw a rectangle as the mouse is dragged, updating dynamically."""
-        self.end_x, self.end_y = event.x, event.y
+        if self.active_handle:
+            self.adjust_rectangle(event.x, event.y)
+        else:
+            self.end_x, self.end_y = event.x, event.y
         self.redraw_rectangle()
 
     def on_mouse_release(self, event):
         """Apply the selection mask when the mouse is released."""
-        self.end_x, self.end_y = event.x, event.y
+        self.active_handle = None
         self.apply_selection_mask()
+
+    """
+    This function download the cropped image in the same folder in which the program is running. 
+    It first checks to see if the cropped image exists or not and then gets the current folder path using 
+    os library and the image is saved as the name given "cropped_image.png"
+    And at the end, a success message with the cropped image file path is displayed
+    """
+    def download_cropped_image(self):
+        if self.cropped_image is not None:
+            current_directory = os.getcwd()
+            save_path = os.path.join(current_directory, "cropped_image.png")
+
+            cropped_pil_image = Image.fromarray(self.cropped_image)
+            cropped_pil_image.save(save_path)
+            tk.messagebox.showinfo("Success", f"Image saved as {save_path}")
 
 
 def main():
