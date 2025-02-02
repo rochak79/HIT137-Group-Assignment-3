@@ -96,7 +96,7 @@ class LoadingImage:
         load_button.pack(pady=10) #adding padding above and below the button
 
         # this is the other button for downloading the image after being cropped and
-        # this button is disabled at first and only active when user draws shape in the image for cropping
+        # this button is disabled at first and only active when user draw some rectangle shape in the image for cropping
         self.download_button = tk.Button(
             self.button_frame,
             text="Download Cropped Image",
