@@ -1,11 +1,15 @@
 import os # used to save the cropped image
 import tkinter as tk 
-from tkinter import filedialog
+from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk #PIL (Python Imaging Library) is used for image processing
 import cv2 # OpenCV library for image processing
 import numpy as np
 
 class ProcessImage:
+    """
+    This class handles the image loading and processing. 
+    It provides functionality to load the chosen image using openCV and also handles colour conversion from BGR to RGB
+    """
     def __init__(self):
         self.current_image = None
         # self.current_image_path = None
@@ -33,80 +37,154 @@ class ProcessImage:
 
 
 class LoadingImage:
+    """
+    This class creates a complete GUI application with an image loading interface,
+    cropping tools, and undo/redo capabilities. It uses tkinter for the GUI and
+    provides a user-friendly interface for image manipulation.
+    
+    this class also has keyboard shortcuts: 
+    Ctrl+Z: Undo last action
+    Ctrl+Y: Redo last undone action
+    Ctrl+S: Save cropped image
+    Ctrl+O: Open/load image
+    
+    """
     def __init__(self, main_window):
-        self.root = main_window #setting the main GUI window
-        self.root.title("Image Viewer Application") # sets the title of the GUI
-
-        self.processor = ProcessImage() #creates an instances of the first class
+        self.root = main_window # Setting the main GUI window
+        self.root.title("Image Editor") # Sets the title 
+        
+        # Configure the window style
+        self.root.configure(bg='#f0f0f0')  # Light gray background
+        
+        # Configure ttk styles
+        self.style = ttk.Style()
+        self.style.configure('Primary.TButton', 
+                           padding=10, 
+                           font=('Helvetica', 10))
+        self.style.configure('Secondary.TButton', 
+                           padding=10, 
+                           font=('Helvetica', 10))
+        
+        # Main container with padding
+        self.main_container = ttk.Frame(self.root, padding="3")
+        self.main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Initialize variables
+        self.processor = ProcessImage()
         self.start_x = self.start_y = self.end_x = self.end_y = None
-        self.drawn_shapes = []  # Store shape IDs to prevent multiple rectangles
-
-        """
-        These variables track and control the selection and resizing of a rectangle and they 
-        store handle positions, detect interactions and also keep the original size for accurate resizing.
-        """
+        self.drawn_shapes = []
+        self.undo_stack = []
+        self.redo_stack = []
         self.active_handle = None
         self.handle_positions = {}
         self.original_coords = None
+        self.create_toolbar()
+        self.create_status_bar()
+        self.create_canvas()
+        self.keybind_shortcuts()
+        self.root.bind("<Configure>", self.handle_resize)
 
-         # Create top frame for buttons
-        self.button_frame = tk.Frame(self.root)
-        self.button_frame.pack(side='top', fill='x')  # Pack at top and fill horizontally
-        # Create main frame for GUI elements
-
-        self.main_frame = tk.Frame(self.root)
-        self.main_frame.pack(padx=150, pady=50) #padding arround the image 
-
-        self.create_buttons()
-
-
-        """ 
-        *Drawing Canvas*
-        The code here create a drawing canvas area inside the window using Tkinter after using this the whole window
-        acts like a canvas where we user can draw any rectangles shapes using mouse to interact.
-
+    def create_toolbar(self):
+        """Creates a modern toolbar containing file and edit operation buttons"""
+        # Create main toolbar container with padding
+        self.toolbar = ttk.Frame(self.main_container)
+        self.toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
         
-        When you click the left mouse button, a function runs and it is getting ready to draw.
-        When you hold the button and move the mouse, another function runs and you can draw any shape.
-        When you release the button, on_mouse_relase will run and stop at that point.
-        """
-        self.canvas = tk.Canvas(self.root, cursor="cross")
-        self.canvas.pack(fill=tk.BOTH, expand=True)
-
-        self.canvas.bind("<ButtonPress-1>", self.on_mouse_press)
-        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
-        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_release)
-
-        # Store the PhotoImage reference
-        self.photo_image = None
-        self.original_image = None  # Store original image
-        # to store the croped image
-        self.cropped_image = None
-
-    def create_buttons(self):  
-        """Create the button for loading the selected image"""
+        # File operations section (Load/Save buttons)
+        self.file_group = ttk.LabelFrame(self.toolbar, text="File", padding="5")
+        self.file_group.pack(side=tk.LEFT, padx=5)
         
-        # button_frame = tk.Frame(self.root)  # Create frame in root instead of main_frame
-        # button_frame.pack(side="bottom", pady=10)  # Pack at top with some padding
-        load_button = tk.Button(
-            self.button_frame,
+        # Load button - Allows selecting an image file
+        self.load_button = ttk.Button(
+            self.file_group,
             text="Load Image",
+            style='Primary.TButton',
             command=self.load_image
         )
-        load_button.pack(pady=10) #adding padding above and below the button
-
-        # this is the other button for downloading the image after being cropped and
-        # this button is disabled at first and only active when user draw some rectangle shape in the image for cropping
-        self.download_button = tk.Button(
-            self.button_frame,
-            text="Download Cropped Image",
+        self.load_button.pack(side=tk.LEFT, padx=2)
+        
+        # Save button - Initially disabled until image is cropped
+        self.download_button = ttk.Button(
+            self.file_group,
+            text="Save Crop",
+            style='Secondary.TButton',
             command=self.download_cropped_image,
             state=tk.DISABLED
         )
-        self.download_button.pack(pady=10)
-
+        self.download_button.pack(side=tk.LEFT, padx=2)
+        
+        # Edit operations section (Undo/Redo buttons)
+        self.edit_group = ttk.LabelFrame(self.toolbar, text="Edit", padding="5")
+        self.edit_group.pack(side=tk.LEFT, padx=5)
+        
+        # Undo button - Reverts last action
+        self.undo_button = ttk.Button(
+            self.edit_group,
+            text="↶ Undo",
+            style='Secondary.TButton',
+            command=self.undo_state
+        )
+        self.undo_button.pack(side=tk.LEFT, padx=2)
+        
+        # Redo button - Reapplies previously undone action
+        self.redo_button = ttk.Button(
+            self.edit_group,
+            text="↷ Redo",
+            style='Secondary.TButton',
+            command=self.redo_state
+        )
+        self.redo_button.pack(side=tk.LEFT, padx=2)
+        
+    def create_status_bar(self):
+        """Creates a status bar at the bottom of the window to display app state and messages"""
+        # Create label-based status bar with sunken effect and left-aligned text
+        self.status_bar = ttk.Label(
+            self.main_container,
+            text="Ready",
+            relief=tk.SUNKEN,
+            anchor=tk.W,
+            padding=(5, 2)
+        )
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        
+    def create_canvas(self):
+        """Create the main canvas with a border and shadow effect"""
+        # Container frame for the canvas with custom styling
+        self.canvas_container = ttk.Frame(
+            self.main_container,
+            style='Canvas.TFrame'
+        )
+        self.canvas_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Main canvas
+        self.canvas = tk.Canvas(
+            self.canvas_container,
+            cursor="cross",  # Crosshair cursor for precise selection
+            bg='white',
+            highlightthickness=0,
+            highlightbackground='#cccccc'  # Light gray border
+        )
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Mouse event bindings for drawing/selection operations
+        self.canvas.bind("<ButtonPress-1>", self.on_mouse_press)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_release)
+        
+    def keybind_shortcuts(self):
+        """keybiind keyboard shortcuts"""
+        self.root.bind('<Control-z>', lambda e: self.undo_action()) # Undo last action
+        self.root.bind('<Control-y>', lambda e: self.redo_state())
+        self.root.bind('<Control-s>', lambda e: self.download_cropped_image()) # Save image
+        self.root.bind('<Control-o>', lambda e: self.load_image()) #load image
+        
+    """
+    The methods in this section loads the image and display it in the tkinter GUI window 
+    
+    """
     def load_image(self):
-        """Open file dialog and load the selected image"""
+        """Handles image file selection and loading the photo"""
+        # load image using filedialog
         file_path = filedialog.askopenfilename(
              # Defines allowed file types
             filetypes=[
@@ -115,81 +193,121 @@ class LoadingImage:
             ]
         )
 
-        # 
+        # Process selected image if user didn't cancel
         if file_path:
+            self.update_status(f"Loading image: {os.path.basename(file_path)}...")
+            # Attempt to load and display the image
             if self.processor.load_image(file_path):
                 self.original_image = self.processor.get_current_image()
                 self.display_image() # Display the loaded image
+                self.update_status("Image loaded successfully")
+            else:
+                self.update_status("Failed to load image")
 
     def display_image(self):
         """Display the currently loaded image"""
         if self.processor.current_image is not None:
-            image = Image.fromarray(self.processor.current_image)  # Convert OpenCV image to PIL Image
+            image = Image.fromarray(self.processor.current_image)  # Convert OpenCV image to PIL Image 
 
-            # Resize image if it's too large (optional)
-            max_width, max_height = 800, 600
-            image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS) # used for resmapling the image when its resized
+            # get the current window size 
+            canvas_width = self.canvas.winfo_width()
+            canvas_height = self.canvas.winfo_height()
+            
+            # Calculate scaling factor to fit window while maintaining the same asepct ratio 
+            img_width, img_height = image.size
+            width_ratio = canvas_width / img_width
+            height_ratio = canvas_height / img_height
+            scale_factor = min(width_ratio, height_ratio)
+            
+            # calculate the new dimesion 
+            new_width = int(img_width * scale_factor)
+            new_height = int(img_height * scale_factor)
+            
+            # Resize image
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Store processed image for later use
+            self.processed_image = np.array(image)  
 
-            self.processed_image = np.array(image)  # Store for processing
-
-            # Convert to PhotoImage
+            # Convert to Tkinter-compatible format
             self.photo_image = ImageTk.PhotoImage(image)
-
-            """
-            *Canvas Size*
-            This code makes the canvas the same size as the image and then places the image 
-            at the top-left corner which is (0,0) and it make sure it starts from the top-left corner 
-            instead of another position.
-            """
-            self.canvas.config(width=image.width, height=image.height)
-            self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
-
+        
+            # Center the image on canvas
+            x_offset = (canvas_width - new_width) // 2
+            y_offset = (canvas_height - new_height) // 2
+            
+            # Clear previous content and display new image
+            self.canvas.delete("all")
+            self.canvas.create_image(x_offset, y_offset, image=self.photo_image, anchor=tk.NW)
+    
+    def handle_resize(self, event=None):
+        """Handle window resize events by updating the image display"""
+        if hasattr(self, 'processor') and self.processor.current_image is not None:
+            # Add small delay to prevent rapid redraws during resizing
+            if hasattr(self, "_resize_job"):
+                self.root.after_cancel(self._resize_job)
+            self._resize_job = self.root.after(100, self.display_image)
+            
+            
+    def update_status(self, message):
+        """Update status bar new message. message will be displayed on the bottom"""
+        self.status_bar.config(text=message)
 
     """ 
+    In this section the methods handle the cropping of image and applying the dark effect 
+    
     *Applying Dark Effect outside the selected area*
+    
     This function darkens everything outside the selected area while keeping the selected part normal. 
     It firstly check if an image is loaded or not and then it makes a copy of it to add a black overlay.
     The black overlay is slightly transparent and we choose it to make it 60%.
     After this the image looks darker and the selected ares is cleared by replacing it with the orginal image.
     Finally, the updated image is shown on the Tkinter canvas, and the selection box is redrawn.
+    
     """
     def apply_selection_mask(self): 
         """Apply a dark mask to unselected areas and redraw the selection with handles."""
         if self.original_image is None or None in (self.start_x, self.start_y, self.end_x, self.end_y):
             return
+        
+        try:
+            image = self.processed_image.copy() # Create working copy of the image
+            h, w, _ = image.shape
 
-        image = self.processed_image.copy()
-        h, w, _ = image.shape
+            # Create a dark overlay
+            overlay = np.zeros((h, w, 3), dtype=np.uint8)
+            overlay[:] = (0, 0, 0)  # Black overlay
 
-        # Create a dark overlay
-        overlay = np.zeros((h, w, 3), dtype=np.uint8)
-        overlay[:] = (0, 0, 0)  # Black overlay
+            # Apply transparency to the overlay
+            alpha = 0.6
+            blended = cv2.addWeighted(image, 1 - alpha, overlay, alpha, 0) # Blend overlay with original image
+ 
+            # Keep the selected region clear
+            x1, x2 = sorted([self.start_x, self.end_x])
+            y1, y2 = sorted([self.start_y, self.end_y])
+            blended[y1:y2, x1:x2] = image[y1:y2, x1:x2]
 
-        # Apply transparency to the overlay
-        alpha = 0.6
-        blended = cv2.addWeighted(image, 1 - alpha, overlay, alpha, 0)
+            self.cropped_image = image[y1:y2, x1:x2]  # Save cropped image for download
 
-        # Keep the selected region clear
-        x1, x2 = sorted([self.start_x, self.end_x])
-        y1, y2 = sorted([self.start_y, self.end_y])
-        blended[y1:y2, x1:x2] = image[y1:y2, x1:x2]
+            # Convert and display the masked image
+            masked_image = Image.fromarray(blended)
+            self.photo_image = ImageTk.PhotoImage(masked_image)
+            self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
 
-        self.cropped_image = image[y1:y2, x1:x2]  # Save cropped image for download
-
-        # Convert and display the masked image
-        masked_image = Image.fromarray(blended)
-        self.photo_image = ImageTk.PhotoImage(masked_image)
-        self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
-
-        # Redraw the selection rectangle with handles
-        self.redraw_rectangle()
-        self.download_button.config(state=tk.NORMAL)  # Enable download button
+            # Redraw the selection rectangle with handles
+            self.redraw_rectangle()
+            self.download_button.config(state=tk.NORMAL)  # Enable download button
+            
+        except Exception as e:
+            self.update_status(f"Error applying mask: {str(e)}")
 
     """
     *Selection Box Drawing in Rectangle*
+    
     This function is helpful to darw a blue rectange around the selected area in all four rectangles sides
     which will be helpful to adjust the selection area from each side. Firslty, it removes an old shapes becuase it will creat a pattern of redrwing otherwise and checks if the selection area exists and olny draw the rectangle.
     It also calculate the center points of each side of the rectange and places four small handles to make resizing the cropping image easier.
+    
     """
     def redraw_rectangle(self):
         """Redraw the rectangle with small square handles at the center of each side."""
@@ -201,66 +319,83 @@ class LoadingImage:
         if None not in (self.start_x, self.start_y, self.end_x, self.end_y):
             # Draw selection rectangle
             rect = self.canvas.create_rectangle(
-                self.start_x, self.start_y, self.end_x, self.end_y, outline="blue", width=2
+                self.start_x, self.start_y, 
+                self.end_x, self.end_y, 
+                outline="#2196F3",
+                width=2, 
+                dash=(5, 2)  # Dashed line for better visibility
             )
             self.drawn_shapes.append(rect)
 
-            # Define handle size
-            handle_size = 6
+            self.add_handles()
+            
+    def add_handles(self):
+        handle_size = 6  # Size of the square handles
 
-            # Compute center positions for each side
-            mid_x = (self.start_x + self.end_x) // 2
-            mid_y = (self.start_y + self.end_y) // 2
+        # Compute center positions for each side
+        mid_x = (self.start_x + self.end_x) // 2
+        mid_y = (self.start_y + self.end_y) // 2
 
-            """
-            This code places small squares in the middle of each side of the rectangle so you can easily resize it.
-            """
-            self.handle_positions = {
-                "top": (mid_x, self.start_y),
-                "bottom": (mid_x, self.end_y),
-                "left": (self.start_x, mid_y),
-                "right": (self.end_x, mid_y)
-            }
-
-            # Draw handles (small squares)
-            top_handle = self.canvas.create_rectangle(mid_x - handle_size, self.start_y - handle_size,
-                                                      mid_x + handle_size, self.start_y + handle_size, fill="blue")  # Top-center
-            bottom_handle = self.canvas.create_rectangle(mid_x - handle_size, self.end_y - handle_size,
-                                                         mid_x + handle_size, self.end_y + handle_size, fill="blue")  # Bottom-center
-            left_handle = self.canvas.create_rectangle(self.start_x - handle_size, mid_y - handle_size,
-                                                       self.start_x + handle_size, mid_y + handle_size, fill="blue")  # Left-center
-            right_handle = self.canvas.create_rectangle(self.end_x - handle_size, mid_y - handle_size,
-                                                        self.end_x + handle_size, mid_y + handle_size, fill="blue")  # Right-center
+        # Define handle positions for each edge
+        self.handle_positions = {
+            "top": (mid_x, self.start_y),
+            "bottom": (mid_x, self.end_y),
+            "left": (self.start_x, mid_y),
+            "right": (self.end_x, mid_y)
+        }
+        
+        # Create handles with better visual style
+        for position, (x, y) in self.handle_positions.items():
+            handle = self.canvas.create_rectangle(
+                x - handle_size, y - handle_size,
+                x + handle_size, y + handle_size,
+                fill="#2196F3",  # Material Design Blue
+                outline="white",
+                width=1
+            )
+            self.drawn_shapes.append(handle)
+            
+            # # Draw handles (small squares)
+            # top_handle = self.canvas.create_rectangle(mid_x - handle_size, self.start_y - handle_size,
+            #                                           mid_x + handle_size, self.start_y + handle_size, fill="blue")  # Top-center
+            # bottom_handle = self.canvas.create_rectangle(mid_x - handle_size, self.end_y - handle_size,
+            #                                              mid_x + handle_size, self.end_y + handle_size, fill="blue")  # Bottom-center
+            # left_handle = self.canvas.create_rectangle(self.start_x - handle_size, mid_y - handle_size,
+            #                                            self.start_x + handle_size, mid_y + handle_size, fill="blue")  # Left-center
+            # right_handle = self.canvas.create_rectangle(self.end_x - handle_size, mid_y - handle_size,
+            #                                             self.end_x + handle_size, mid_y + handle_size, fill="blue")  # Right-center
 
             # Store handle IDs for deletion on next redraw
-            self.drawn_shapes.extend([top_handle, bottom_handle, left_handle, right_handle])
+            # self.drawn_shapes.extend([top_handle, bottom_handle, left_handle, right_handle])
 
-    # This function checks if you clicked on a resize handle or not and if you click then it will atjust or
-    # it will create a new handler and return None.
-    def detect_handle(self, x, y):
+
+    def detect_handle(self, x, y): # This function checks if you clicked on a resize handle or not and if you click then it will atjust or
         handle_size = 6
+        # Check each handle's detection area
         for handle, (hx, hy) in self.handle_positions.items():
-            if hx - handle_size <= x <= hx + handle_size and hy - handle_size <= y <= hy + handle_size:
+            if abs(x - hx) <= handle_size and abs(y - hy) <= handle_size:
                 return handle
         return None
     
+        
     """
+    
     This function resizes the rectangle when you drag a handle with top, bottom, left, or right handler
     and it also help to updates the rectangle's edges based on the mouse position while dragging the mouse in any 
     position of the image.
+    
     """
+    
     def adjust_rectangle(self, x, y):
-        start_x, start_y, end_x, end_y = self.original_coords
-
+        # Adjust the appropriate edge based on which handle is being dragged 
         if self.active_handle == "top":
-            self.start_y = y
+            self.start_y = y # Move top edge vertically
         elif self.active_handle == "bottom":
-            self.end_y = y
+            self.end_y = y # Move bottom edge vertically  
         elif self.active_handle == "left":
-            self.start_x = x
+            self.start_x = x # Move left edge horizontally
         elif self.active_handle == "right":
-            self.end_x = x
-
+            self.end_x = x  # Move right edge horizontally
 
     """ 
     *On Mouse Selection Handling*
@@ -271,24 +406,32 @@ class LoadingImage:
     """
     def on_mouse_press(self, event):
         """Store the initial position of the mouse when clicked."""
+        # Check if click is on a resize handle
         self.active_handle = self.detect_handle(event.x, event.y)
+        
         if self.active_handle is None:
+            # Start new selection if not clicking a handle
             self.start_x, self.start_y = event.x, event.y
         else:
+            # Store current coordinates for handle resizing
             self.original_coords = (self.start_x, self.start_y, self.end_x, self.end_y)
 
     def on_mouse_drag(self, event):
         """Draw a rectangle as the mouse is dragged, updating dynamically."""
         if self.active_handle:
+            # Resize using handle
             self.adjust_rectangle(event.x, event.y)
         else:
+            # Update selection size
             self.end_x, self.end_y = event.x, event.y
         self.redraw_rectangle()
 
     def on_mouse_release(self, event):
         """Apply the selection mask when the mouse is released."""
-        self.active_handle = None
-        self.apply_selection_mask()
+        self.active_handle = None  # Reset active handle state
+        if None not in (self.start_x, self.start_y, self.end_x, self.end_y):
+            self.save_state()  # Save state before applying mask
+            self.apply_selection_mask()
 
     """
     This function download the cropped image in the same folder in which the program is running. 
@@ -298,18 +441,138 @@ class LoadingImage:
     """
     def download_cropped_image(self):
         if self.cropped_image is not None:
-            current_directory = os.getcwd()
-            save_path = os.path.join(current_directory, "cropped_image.png")
+            # current_directory = os.getcwd()
+            # save_path = os.path.join(current_directory, "cropped_image.png")
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                filetypes=[
+                    ("PNG files", "*.png"),
+                    ("JPEG files", "*.jpg"),
+                    ("All files", "*.*")
+                ]
+            )
+    
+        if file_path:
+            try:
+                cropped_pil_image = Image.fromarray(self.cropped_image)
+                cropped_pil_image.save(file_path)
+                self.update_status(f"Image saved successfully to: {file_path}")
+            except Exception as e:
+                self.update_status(f"Error saving image: {str(e)}")
+                messagebox.showerror("Error", f"Failed to save image: {str(e)}")
+            
 
-            cropped_pil_image = Image.fromarray(self.cropped_image)
-            cropped_pil_image.save(save_path)
-            tk.messagebox.showinfo("Success", f"Image saved as {save_path}")
+    """
+    Implements undo/redo functionality for image selections.
 
+    This section maintains two stacks to track selection states:
+    - undo_stack: Stores previous selection coordinates
+    - redo_stack: Stores undone selections for potential redo
 
+    Each state contains the coordinates (start_x, start_y, end_x, end_y) 
+    of the selection rectangle. The system automatically updates button
+    states based on stack availability.
+    """
+    
+    def redo_state(self,event=None):
+        """Redo the previously undone action"""
+        if len(self.redo_stack) > 0:
+            # Save current state to undo stack
+            current_state = {
+                'start_x': self.start_x,
+                'start_y': self.start_y,
+                'end_x': self.end_x,
+                'end_y': self.end_y
+            }
+            self.undo_stack.append(current_state)
+            
+            # Restore state from redo stack
+            next_state = self.redo_stack.pop()
+            self.restore_state(next_state)
+            
+            # Update button states
+            if len(self.redo_stack) == 0:
+                self.redo_button.config(state=tk.DISABLED)
+            self.undo_button.config(state=tk.NORMAL)
+            
+    def restore_state(self, state):
+        """Helper method to restore a state and update the display"""
+        if state:
+            # Clear canvas first
+            self.canvas.delete("all")
+            
+            # Restore coordinates that were saved
+            self.start_x = state['start_x']
+            self.start_y = state['start_y']
+            self.end_x = state['end_x']
+            self.end_y = state['end_y']
+            
+            # Redisplay the original image
+            if self.processed_image is not None:
+                print("Redisplaying original image")  # Debug print
+                image = Image.fromarray(self.processed_image)
+                self.photo_image = ImageTk.PhotoImage(image)
+                self.canvas.create_image(0, 0, image=self.photo_image, anchor=tk.NW)
+            
+            # Apply the mask and redraw the rectangle
+            self.apply_selection_mask()
+            self.redraw_rectangle()
+            
+            # Update status
+            x1, x2 = sorted([self.start_x, self.end_x])
+            y1, y2 = sorted([self.start_y, self.end_y])
+            self.update_status(f"Selection area: {x2-x1}x{y2-y1} pixels")
+            
+    def save_state(self):
+        """Save current selection state to undo stack"""
+        if None not in (self.start_x, self.start_y, self.end_x, self.end_y):
+            
+            # Store current coordinates
+            state = {
+                'start_x': self.start_x,
+                'start_y': self.start_y,
+                'end_x': self.end_x,
+                'end_y': self.end_y
+            }
+            
+            self.undo_stack.append(state)
+            self.redo_stack.clear() # Clear redo history on new action
+            
+            # Enable/disable undo/redo buttons based on curent stack state
+            self.undo_button.config(state=tk.NORMAL)
+            self.redo_button.config(state=tk.DISABLED)
+            
+    def undo_state(self, event=None):
+        """Undo the last action and revers to the previous state"""
+        if len(self.undo_stack) > 0:
+            # Save current state to redo stack
+            current_state = {
+                'start_x': self.start_x,
+                'start_y': self.start_y,
+                'end_x': self.end_x,
+                'end_y': self.end_y
+            }
+            self.redo_stack.append(current_state)
+            
+            # Restore previous state
+            previous_state = self.undo_stack.pop()
+            
+            # Use the restore_state helper
+            self.restore_state(previous_state)
+            
+            # Update button states
+            if len(self.undo_stack) == 0:
+                self.undo_button.config(state=tk.DISABLED)
+            self.redo_button.config(state=tk.NORMAL)
+            print(f"Undo stack after: {len(self.undo_stack)}")
+            
+    
 def main():
-    root = tk.Tk()
-    app = LoadingImage(root)
-    root.mainloop()
+    
+    root = tk.Tk() #create the main application window 
+    root.geometry("1024x768")  # Set the window size, can be changed to other values (optional)
+    app = LoadingImage(root) #starts the application with root window
+    root.mainloop()    # Start the Tkinter event loop
 
 
 if __name__ == "__main__":
