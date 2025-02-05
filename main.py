@@ -407,14 +407,14 @@ class LoadingImage:
     def on_mouse_press(self, event):
         """Store the initial position of the mouse when clicked."""
         # Check if click is on a resize handle
-        self.active_handle = self.detect_handle(event.x, event.y)
+        self.active_handle = self.detect_handle(event.x, event.y) # Detect handle if clicked
         
         if self.active_handle is None:
             # Start new selection if not clicking a handle
-            self.start_x, self.start_y = event.x, event.y
+            self.start_x, self.start_y = event.x, event.y # Store initial coordinates
         else:
             # Store current coordinates for handle resizing
-            self.original_coords = (self.start_x, self.start_y, self.end_x, self.end_y)
+            self.original_coords = (self.start_x, self.start_y, self.end_x, self.end_y) # Store original coordinates
 
     def on_mouse_drag(self, event):
         """Draw a rectangle as the mouse is dragged, updating dynamically."""
@@ -423,7 +423,7 @@ class LoadingImage:
             self.adjust_rectangle(event.x, event.y)
         else:
             # Update selection size
-            self.end_x, self.end_y = event.x, event.y
+            self.end_x, self.end_y = event.x, event.y # Update end coordinates
         self.redraw_rectangle()
 
     def on_mouse_release(self, event):
