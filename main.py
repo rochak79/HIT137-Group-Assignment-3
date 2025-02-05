@@ -404,7 +404,7 @@ class LoadingImage:
     If a resize handle is detected and your resize the cropping image , it enables resizing instead of creating a new selection. 
     At the end when you release the mouse, it finalizes the selection area and make dark everything else outside the selected area.
     """
-    def on_mouse_press(self, event):
+    def on_mouse_press(self, event): # This function is responsible for selecting the area on the canvas using the mouse cursor
         """Store the initial position of the mouse when clicked."""
         # Check if click is on a resize handle
         self.active_handle = self.detect_handle(event.x, event.y) # Detect handle if clicked
@@ -418,18 +418,18 @@ class LoadingImage:
 
     def on_mouse_drag(self, event):
         """Draw a rectangle as the mouse is dragged, updating dynamically."""
-        if self.active_handle:
+        if self.active_handle: # Check if handle is active
             # Resize using handle
-            self.adjust_rectangle(event.x, event.y)
+            self.adjust_rectangle(event.x, event.y) # Adjust rectangle based on handle
         else:
             # Update selection size
             self.end_x, self.end_y = event.x, event.y # Update end coordinates
-        self.redraw_rectangle()
+        self.redraw_rectangle() # Redraw the rectangle
 
     def on_mouse_release(self, event):
         """Apply the selection mask when the mouse is released."""
         self.active_handle = None  # Reset active handle state
-        if None not in (self.start_x, self.start_y, self.end_x, self.end_y):
+        if None not in (self.start_x, self.start_y, self.end_x, self.end_y): # Check if selection exists
             self.save_state()  # Save state before applying mask
             self.apply_selection_mask() # Apply the dark mask
 
