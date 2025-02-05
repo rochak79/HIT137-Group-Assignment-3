@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk #PIL (Python Imaging Library) is used for image processing
 import cv2 # OpenCV library for image processing
-import numpy as np
+import numpy as np 
 
 class ProcessImage:
     """
@@ -159,7 +159,7 @@ class LoadingImage:
         # Main canvas
         self.canvas = tk.Canvas(
             self.canvas_container,
-            cursor="cross",  # Crosshair cursor for precise selection
+            cursor="cross",  # Cross hair cursor for precise selection
             bg='white',
             highlightthickness=0,
             highlightbackground='#cccccc'  # Light gray border
@@ -195,7 +195,7 @@ class LoadingImage:
 
         # Process selected image if user didn't cancel
         if file_path:
-            self.update_status(f"Loading image: {os.path.basename(file_path)}...")
+            self.update_status(f"Loading image: {os.path.basename(file_path)}...") # Display the image name in the status bar
             # Attempt to load and display the image
             if self.processor.load_image(file_path):
                 self.original_image = self.processor.get_current_image()
