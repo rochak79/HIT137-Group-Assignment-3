@@ -279,7 +279,7 @@ class LoadingImage:
             overlay[:] = (0, 0, 0)  # Black overlay
 
             # Apply transparency to the overlay
-            alpha = 0.6
+            alpha = 0.6 # 60% transparency
             blended = cv2.addWeighted(image, 1 - alpha, overlay, alpha, 0) # Blend overlay with original image
  
             # Keep the selected region clear
@@ -431,7 +431,7 @@ class LoadingImage:
         self.active_handle = None  # Reset active handle state
         if None not in (self.start_x, self.start_y, self.end_x, self.end_y):
             self.save_state()  # Save state before applying mask
-            self.apply_selection_mask()
+            self.apply_selection_mask() # Apply the dark mask
 
     """
     This function download the cropped image in the same folder in which the program is running. 
@@ -440,7 +440,7 @@ class LoadingImage:
     And at the end, a success message with the cropped image file path is displayed
     """
     def download_cropped_image(self):
-        if self.cropped_image is not None:
+        if self.cropped_image is not None: # Check if cropped image exists
             # current_directory = os.getcwd()
             # save_path = os.path.join(current_directory, "cropped_image.png")
             file_path = filedialog.asksaveasfilename(
@@ -479,7 +479,7 @@ class LoadingImage:
         if len(self.redo_stack) > 0:
             # Save current state to undo stack
             current_state = {
-                'start_x': self.start_x,
+                'start_x': self.start_x, # Save current coordinates
                 'start_y': self.start_y,
                 'end_x': self.end_x,
                 'end_y': self.end_y
