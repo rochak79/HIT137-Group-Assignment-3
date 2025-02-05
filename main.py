@@ -313,19 +313,19 @@ class LoadingImage:
         """Redraw the rectangle with small square handles at the center of each side."""
         # Delete previously drawn rectangle & handles
         for shape in self.drawn_shapes:
-            self.canvas.delete(shape)
-        self.drawn_shapes.clear()
+            self.canvas.delete(shape) # Delete the shape
+        self.drawn_shapes.clear() # Clear the shapes
 
-        if None not in (self.start_x, self.start_y, self.end_x, self.end_y):
+        if None not in (self.start_x, self.start_y, self.end_x, self.end_y): # Check if selection exists
             # Draw selection rectangle
-            rect = self.canvas.create_rectangle(
+            rect = self.canvas.create_rectangle( # Draw rectangle around the selected area
                 self.start_x, self.start_y, 
                 self.end_x, self.end_y, 
-                outline="#2196F3",
+                outline="#2196F3", 
                 width=2, 
                 dash=(5, 2)  # Dashed line for better visibility
             )
-            self.drawn_shapes.append(rect)
+            self.drawn_shapes.append(rect) # Append the rectangle to the shapes
 
             self.add_handles()
             
@@ -345,7 +345,7 @@ class LoadingImage:
         }
         
         # Create handles with better visual style
-        for position, (x, y) in self.handle_positions.items():
+        for position, (x, y) in self.handle_positions.items(): # Loop through each handle position
             handle = self.canvas.create_rectangle(
                 x - handle_size, y - handle_size,
                 x + handle_size, y + handle_size,
@@ -370,12 +370,12 @@ class LoadingImage:
 
 
     def detect_handle(self, x, y): # This function checks if you clicked on a resize handle or not and if you click then it will atjust or
-        handle_size = 6
+        handle_size = 6 # Size of the square handles
         # Check each handle's detection area
         for handle, (hx, hy) in self.handle_positions.items():
-            if abs(x - hx) <= handle_size and abs(y - hy) <= handle_size:
-                return handle
-        return None
+            if abs(x - hx) <= handle_size and abs(y - hy) <= handle_size: # Check if clicked on handle
+                return handle # Return the handle name if clicked
+        return None # Return None if not clicked on handle
     
         
     """
