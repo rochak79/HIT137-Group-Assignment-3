@@ -10,7 +10,7 @@ class ProcessImage:
     This class handles the image loading and processing. 
     It provides functionality to load the chosen image using openCV and also handles colour conversion from BGR to RGB
     """
-    def __ (self):
+    def __init__ (self):
         self.current_image = None
         # self.current_image_path = None
 
@@ -203,7 +203,7 @@ class LoadingImage:
         
     def keybind_shortcuts(self):
         """keybiind keyboard shortcuts"""
-        self.root.bind('<Control-z>', lambda e: self.undo_action()) # Undo last action
+        self.root.bind('<Control-z>', lambda e: self.undo_state()) # Undo last action
         self.root.bind('<Control-y>', lambda e: self.redo_state())
         self.root.bind('<Control-s>', lambda e: self.download_cropped_image()) # Save image
         self.root.bind('<Control-o>', lambda e: self.load_image()) #load image
@@ -384,20 +384,6 @@ class LoadingImage:
                 width=1
             )
             self.drawn_shapes.append(handle)
-            
-            # # Draw handles (small squares)
-            # top_handle = self.canvas.create_rectangle(mid_x - handle_size, self.start_y - handle_size,
-            #                                           mid_x + handle_size, self.start_y + handle_size, fill="blue")  # Top-center
-            # bottom_handle = self.canvas.create_rectangle(mid_x - handle_size, self.end_y - handle_size,
-            #                                              mid_x + handle_size, self.end_y + handle_size, fill="blue")  # Bottom-center
-            # left_handle = self.canvas.create_rectangle(self.start_x - handle_size, mid_y - handle_size,
-            #                                            self.start_x + handle_size, mid_y + handle_size, fill="blue")  # Left-center
-            # right_handle = self.canvas.create_rectangle(self.end_x - handle_size, mid_y - handle_size,
-            #                                             self.end_x + handle_size, mid_y + handle_size, fill="blue")  # Right-center
-
-            # Store handle IDs for deletion on next redraw
-            # self.drawn_shapes.extend([top_handle, bottom_handle, left_handle, right_handle])
-
 
     def detect_handle(self, x, y): # This function checks if you clicked on a resize handle or not and if you click then it will atjust or
         handle_size = 6 # Size of the square handles
@@ -596,8 +582,6 @@ class LoadingImage:
             self.redo_button.config(state=tk.NORMAL)
             print(f"Undo stack after: {len(self.undo_stack)}")
 
-    def get_current_image(self):
-        return self.current_image
     
 def main():
     
