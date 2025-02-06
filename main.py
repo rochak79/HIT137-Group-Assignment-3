@@ -10,7 +10,7 @@ class ProcessImage:
     This class handles the image loading and processing. 
     It provides functionality to load the chosen image using openCV and also handles colour conversion from BGR to RGB
     """
-    def __init__(self):
+    def __ (self):
         self.current_image = None
         # self.current_image_path = None
 
@@ -83,6 +83,36 @@ class LoadingImage:
         self.create_canvas()
         self.keybind_shortcuts()
         self.root.bind("<Configure>", self.handle_resize)
+
+    def create_resize_slider(self):
+        """Creating a slider for resizing the preview of the cropped image"""
+        self.slider_frame = ttk.LabelFrame(self.root, text="Resize Preview", padding="5")
+        self.slider_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
+
+        # Slider widget (scale from 10% to 200%)
+        self.resize_slider = ttk.Scale(self.slider_frame, from_=10, to=200, orient=tk.HORIZONTAL, command=self.resize_preview)
+        self.resize_slider.set(100)  # Default size (100%)
+        self.resize_slider.pack(fill=tk.X, padx=10, pady=5)
+
+    def resize_preview(self, scale_value):
+        """Resized the cropped image preview dynamically"""
+        if self.cropped_image is None:
+            return
+
+        # Convert scale value to float and apply resizing
+        scale_factor = float(scale_value) / 100.0
+        image = Image.fromarray(self.cropped_image)
+
+        # Compute new dimensions
+        new_width = int(image.width * scale_factor)
+        new_height = int(image.height * scale_factor)
+
+        resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # Convert to Tkinter-compatible format and update display
+        self.preview_image = ImageTk.PhotoImage(resized_image)
+        self.canvas.delete("all")
+        self.canvas.create_image(10, 10, image=self.preview_image, anchor=tk.NW)
 
     def create_toolbar(self):
         """Creates a modern toolbar containing file and edit operation buttons"""
@@ -565,7 +595,9 @@ class LoadingImage:
                 self.undo_button.config(state=tk.DISABLED)
             self.redo_button.config(state=tk.NORMAL)
             print(f"Undo stack after: {len(self.undo_stack)}")
-            
+
+    def get_current_image(self):
+        return self.current_image
     
 def main():
     
