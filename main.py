@@ -568,7 +568,7 @@ class LoadingImage:
             self.undo_stack.append(state)
             self.redo_stack.clear() # Clear redo history on new action
             
-            # Enable/disable undo/redo buttons based on curent stack state
+            # Enable/disable undo/redo buttons based on current stack state
             self.undo_button.config(state=tk.NORMAL)
             self.redo_button.config(state=tk.DISABLED)
             
@@ -587,7 +587,7 @@ class LoadingImage:
             # Restore previous state
             previous_state = self.undo_stack.pop()
             
-            # Use the restore_state helper
+            # Used the restore_state helper
             self.restore_state(previous_state)
             
             # Update button states
