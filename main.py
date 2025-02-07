@@ -12,7 +12,6 @@ class ProcessImage:
     """
     def __init__ (self):
         self.current_image = None
-        # self.current_image_path = None
 
     def load_image(self, image_path):
         """Load an image using OpenCV."""
@@ -54,16 +53,16 @@ class LoadingImage:
         self.root.title("Image Editor") # Sets the title 
         
         # Configure the window style
-        self.root.configure(bg='#f0f0f0')  # Light gray background
+        self.root.configure(bg="#f0f0f0")  # Light gray background
         
         # Configure ttk styles
         self.style = ttk.Style()
-        self.style.configure('Primary.TButton', 
+        self.style.configure("Primary.TButton", 
                            padding=10, 
-                           font=('Helvetica', 10))
-        self.style.configure('Secondary.TButton', 
+                           font=("Helvetica", 10))
+        self.style.configure("Secondary.TButton", 
                            padding=10, 
-                           font=('Helvetica', 10))
+                           font=("Helvetica", 10))
         
         # Main container with padding
         self.main_container = ttk.Frame(self.root, padding="3")
@@ -128,7 +127,7 @@ class LoadingImage:
         self.load_button = ttk.Button(
             self.file_group,
             text="Load Image",
-            style='Primary.TButton',
+            style="Primary.TButton",
             command=self.load_image
         )
         self.load_button.pack(side=tk.LEFT, padx=2)
@@ -137,7 +136,7 @@ class LoadingImage:
         self.download_button = ttk.Button(
             self.file_group,
             text="Save Crop",
-            style='Secondary.TButton',
+            style="Secondary.TButton",
             command=self.download_cropped_image,
             state=tk.DISABLED
         )
@@ -151,7 +150,7 @@ class LoadingImage:
         self.undo_button = ttk.Button(
             self.edit_group,
             text="↶ Undo",
-            style='Secondary.TButton',
+            style="Secondary.TButton",
             command=self.undo_state
         )
         self.undo_button.pack(side=tk.LEFT, padx=2)
@@ -160,7 +159,7 @@ class LoadingImage:
         self.redo_button = ttk.Button(
             self.edit_group,
             text="↷ Redo",
-            style='Secondary.TButton',
+            style="Secondary.TButton",
             command=self.redo_state
         )
         self.redo_button.pack(side=tk.LEFT, padx=2)
@@ -182,7 +181,7 @@ class LoadingImage:
         # Container frame for the canvas with custom styling
         self.canvas_container = ttk.Frame(
             self.main_container,
-            style='Canvas.TFrame'
+            style="Canvas.TFrame"
         )
         self.canvas_container.pack(fill=tk.BOTH, expand=True)
         
@@ -190,9 +189,9 @@ class LoadingImage:
         self.canvas = tk.Canvas(
             self.canvas_container,
             cursor="cross",  # Cross hair cursor for precise selection
-            bg='white',
+            bg="white",
             highlightthickness=0,
-            highlightbackground='#cccccc'  # Light gray border
+            highlightbackground="#cccccc"  # Light gray border
         )
         self.canvas.pack(fill=tk.BOTH, expand=True)
         
@@ -203,10 +202,10 @@ class LoadingImage:
         
     def keybind_shortcuts(self):
         """keybiind keyboard shortcuts"""
-        self.root.bind('<Control-z>', lambda e: self.undo_state()) # Undo last action
-        self.root.bind('<Control-y>', lambda e: self.redo_state())
-        self.root.bind('<Control-s>', lambda e: self.download_cropped_image()) # Save image
-        self.root.bind('<Control-o>', lambda e: self.load_image()) #load image
+        self.root.bind("<Control-z>", lambda e: self.undo_state()) # Undo last action
+        self.root.bind("<Control-y>", lambda e: self.redo_state())
+        self.root.bind("<Control-s>", lambda e: self.download_cropped_image()) # Save image
+        self.root.bind("<Control-o>", lambda e: self.load_image()) #load image
         
     """
     The methods in this section loads the image and display it in the tkinter GUI window 
@@ -457,8 +456,6 @@ class LoadingImage:
     """
     def download_cropped_image(self):
         if self.cropped_image is not None: # Check if cropped image exists
-            # current_directory = os.getcwd()
-            # save_path = os.path.join(current_directory, "cropped_image.png")
             file_path = filedialog.asksaveasfilename(
                 defaultextension=".png",
                 filetypes=[
@@ -495,10 +492,10 @@ class LoadingImage:
         if len(self.redo_stack) > 0:
             # Save current state to undo stack
             current_state = {
-                'start_x': self.start_x, # Save current coordinates
-                'start_y': self.start_y,
-                'end_x': self.end_x,
-                'end_y': self.end_y
+                "start_x": self.start_x, # Save current coordinates
+                "start_y": self.start_y,
+                "end_x": self.end_x,
+                "end_y": self.end_y
             }
             self.undo_stack.append(current_state)
             
@@ -518,10 +515,10 @@ class LoadingImage:
             self.canvas.delete("all")
             
             # Restore coordinates that were saved
-            self.start_x = state['start_x']
-            self.start_y = state['start_y']
-            self.end_x = state['end_x']
-            self.end_y = state['end_y']
+            self.start_x = state["start_x"]
+            self.start_y = state["start_y"]
+            self.end_x = state["end_x"]
+            self.end_y = state["end_y"]
             
             # Redisplay the original image
             if self.processed_image is not None:
@@ -545,10 +542,10 @@ class LoadingImage:
             
             # Store current coordinates
             state = {
-                'start_x': self.start_x,
-                'start_y': self.start_y,
-                'end_x': self.end_x,
-                'end_y': self.end_y
+                "start_x": self.start_x,
+                "start_y": self.start_y,
+                "end_x": self.end_x,
+                "end_y": self.end_y
             }
             
             self.undo_stack.append(state)
@@ -563,10 +560,10 @@ class LoadingImage:
         if len(self.undo_stack) > 0:
             # Save current state to redo stack
             current_state = {
-                'start_x': self.start_x,
-                'start_y': self.start_y,
-                'end_x': self.end_x,
-                'end_y': self.end_y
+                "start_x": self.start_x,
+                "start_y": self.start_y,
+                "end_x": self.end_x,
+                "end_y": self.end_y
             }
             self.redo_stack.append(current_state)
             
